@@ -20,7 +20,7 @@
     try{
       if(!globalThis.crypto?.subtle||!globalThis.DecompressionStream)throw new Error('browser');
       let payload;
-      try{const response=await fetch('game.enc.json?v=bddb32d3db07',{cache:'no-store'});if(!response.ok)throw new Error('load');payload=await response.json();}
+      try{const response=await fetch('game.enc.json?v=9c02cbb475a4',{cache:'no-store'});if(!response.ok)throw new Error('load');payload=await response.json();}
       catch{throw new Error('load');}
       let game;
       try{game=await unlockProtectedGame(gatePassword.value,payload);}
