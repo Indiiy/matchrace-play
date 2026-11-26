@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Play MatchRace</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#091e28;color:#edf7f5;font:16px system-ui;padding:24px;color-scheme:dark}main{width:100%;max-width:400px;padding:30px;background:#112f3a;border:1px solid #335461;border-radius:14px}h1{font-size:2.6rem;letter-spacing:-.05em;margin:0}p{line-height:1.5;color:#b1cbd0}label{display:block;margin:20px 0 6px}input,button{width:100%;font:inherit;border-radius:7px;padding:12px;border:1px solid #58727b}input{background:#091e28;color:#fff}button{margin-top:14px;background:#c9ebd9;color:#092b35;font-weight:700;cursor:pointer}button:disabled{opacity:.6;cursor:wait}#gateMessage{min-height:24px;color:#ffdb72}</style></head>
+<body><main><h1>MatchRace</h1><p>Enter the password to play.</p><form id="gateForm"><label for="gatePassword">Password</label><input id="gatePassword" type="password" required autocomplete="current-password" autofocus><button id="gatePlay" type="submit">Play</button><p id="gateMessage" role="status" aria-live="polite"></p></form></main>
+<script>
+(()=>{
+  const gateForm=document.getElementById('gateForm'),gatePassword=document.getElementById('gatePassword');
+  const gatePlay=document.getElementById('gatePlay'),gateMessage=document.getElementById('gateMessage');
+  const decode=value=>Uint8Array.from(atob(value),character=>character.charCodeAt(0));
+  async function unlockProtectedGame(password,payload){
+    const material=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:decode(payload.salt),iterations:payload.iterations,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['decrypt']);
+    const clear=await crypto.subtle.decrypt({name:'AES-GCM',iv:decode(payload.iv)},key,decode(payload.ciphertext));
+    const stream=new Blob([clear]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(stream).text();
+  }
+  gateForm.addEventListener('submit',async event=>{
+    event.preventDefault();gatePlay.disabled=true;gatePlay.textContent='Opening…';gateMessage.textContent='';
+    try{
+      if(!globalThis.crypto?.subtle||!globalThis.DecompressionStream)throw new Error('browser');
+      let payload;
+      try{const response=await fetch('game.enc.json',{cache:'no-store'});if(!response.ok)throw new Error('load');payload=await response.json();}
+      catch{throw new Error('load');}
+      let game;
+      try{game=await unlockProtectedGame(gatePassword.value,payload);}
+      catch{throw new Error('password');}
+      gatePassword.value='';document.open();document.write(game);document.close();
+    }catch(error){
+      gateMessage.textContent=error.message==='password'?'Password not accepted. Try again.':error.message==='browser'?'Please open this HTTPS link in a current browser.':'Could not load the game. Please try again.';
+      gatePassword.value='';gatePassword.focus();
+    }finally{gatePlay.disabled=false;gatePlay.textContent='Play';}
+  });
+})();
+</script></body></html>
